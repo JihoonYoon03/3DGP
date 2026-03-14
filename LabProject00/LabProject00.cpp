@@ -79,6 +79,7 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     wcex.hCursor        = LoadCursor(nullptr, IDC_ARROW);
     wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
     wcex.lpszMenuName   = MAKEINTRESOURCEW(IDC_LABPROJECT00);
+    //wcex.lpszMenuName = NULL;   // 메뉴를 없애려면
     wcex.lpszClassName  = szWindowClass;
     wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
