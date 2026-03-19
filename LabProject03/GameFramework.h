@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Timer.h"
 
 class CGameFramework {
 public:
@@ -48,7 +49,7 @@ private:
 	// DXGI 팩토리 인터페이스에 대한 포인터
 	IDXGIFactory4*		m_pDXGIFactory;
 	// 스왑 체인 인터페이스에 대한 포인터. 주로 디스플레이를 제어하기 위해 필요
-	IDXGISwapChain3*	m_pDXGISwapChain;
+	IDXGISwapChain3*	m_pDXGIwapChain;
 	// Direct3D 디바이스 인터페이스에 대한 포인터이다. 주로 리소스를 생성하기 위하여 필요하다.
 	ID3D12Device*		m_pD3DDevice;
 
@@ -87,5 +88,12 @@ private:
 	// 뷰포트와 씨저 사각형이다.
 	D3D12_VIEWPORT	m_d3dViewport;
 	D3D12_RECT		m_d3dScissorRect;
+
+	// 다음은 게임 프레임워크에서 사용할 타이머이다.
+	CGameTimer m_GameTimer;
+
+	// 다음은 프레임 레이트를 주 윈도우의 캡션에 출력하기 위한 문자열이다.
+	_TCHAR m_pszFrameRate[50];
+
 };
 

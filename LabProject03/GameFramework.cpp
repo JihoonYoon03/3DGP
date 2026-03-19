@@ -4,7 +4,7 @@
 CGameFramework::CGameFramework()
 {
 	m_pDXGIFactory = NULL;
-	m_pDXGISwapChain = NULL;
+	m_pDXGIwapChain = NULL;
 	m_pD3DDevice = NULL;
 
 	m_pd3dCommandAllocator = NULL;
@@ -31,6 +31,8 @@ CGameFramework::CGameFramework()
 
 	m_nWndClientWidth = FRAME_BUFFER_WIDTH;
 	m_nWndClientHeight = FRAME_BUFFER_HEIGHT;
+
+	_tcscpy_s(m_pszFrameRate, _T("LapProject ("));
 }
 
 // 다음 함수는 응용 프로그램이 실행되어 주 윈도우가 생성되면 호출된다는 것에 유의
@@ -83,8 +85,8 @@ void CGameFramework::OnDestroy()
 
 	if (m_pd3dFence)				m_pd3dFence->Release();
 
-	m_pDXGISwapChain->SetFullscreenState(FALSE, NULL);
-	if (m_pDXGISwapChain)			m_pDXGISwapChain->Release();
+	m_pDXGIwapChain->SetFullscreenState(FALSE, NULL);
+	if (m_pDXGIwapChain)			m_pDXGIwapChain->Release();
 	if (m_pD3DDevice)				m_pD3DDevice->Release();
 	if (m_pDXGIFactory)				m_pDXGIFactory->Release();
 
@@ -135,14 +137,14 @@ void CGameFramework::CreateSwapChain()
 		&dxgiSwapChainDesc,
 		&dxgiSwapChainFullScreenDesc,
 		NULL, 
-		(IDXGISwapChain1**)&m_pDXGISwapChain
+		(IDXGISwapChain1**)&m_pDXGIwapChain
 	);
 	
 	// "Alt+Enter"(전체화면) 키의 동작을 비활성화한다.
 	m_pDXGIFactory->MakeWindowAssociation(m_hWnd, DXGI_MWA_NO_ALT_ENTER);
 	
 	// 스왑체인의 현재 후면버퍼 인덱스를 저장한다.
-	m_nSwapChainBufferIndex = m_pDXGISwapChain->GetCurrentBackBufferIndex();
+	m_nSwapChainBufferIndex = m_pDXGIwapChain->GetCurrentBackBufferIndex();
 }
 
 void CGameFramework::CreateDirect3DDevice()
@@ -322,7 +324,7 @@ void CGameFramework::CreateRenderTargetViews()
 
 	for (UINT i = 0; i < m_nSwapChainBuffers; ++i)
 	{
-		m_pDXGISwapChain->GetBuffer
+		m_pDXGIwapChain->GetBuffer
 		(
 			i,
 			__uuidof(ID3D12Resource),
@@ -493,6 +495,8 @@ void CGameFramework::WaitForGPUComplete()
 
 void CGameFramework::FrameAdvance()
 {
+	// 타이머의 시간이 갱신되도록 하고 프레임 레이트를 계산한다.
+	m_GameTimer.Tick(0.0f);
 	ProcessInput();
 
 	AnimateObjects();
@@ -579,9 +583,19 @@ void CGameFramework::FrameAdvance()
 	dxgiPresentParameters.pDirtyRects = NULL;
 	dxgiPresentParameters.pScrollRect = NULL;
 	dxgiPresentParameters.pScrollOffset = NULL;
-	m_pDXGISwapChain->Present1(1, 0, &dxgiPresentParameters);
+	m_pDXGIwapChain->Present(0, 0);
 
-	m_nSwapChainBufferIndex = m_pDXGISwapChain->GetCurrentBackBufferIndex();
+	m_nSwapChainBufferIndex = m_pDXGIwapChain->GetCurrentBackBufferIndex();
+
+	/*현재의 프레임 레이트를 문자열로 가져와서 주 윈도우의 타이틀로 출력한다. m_pszBuffer 문자열이
+	"LapProject ("으로 초기화되었으므로 (m_pszFrameRate+12)에서부터 프레임 레이트를 문자열로 출력
+	하여 “ FPS)” 문자열과 합친다.*/
+
+	::_itow_s(m_GameTimer.GetFrameRate(), (m_pszFrameRate + 12), 37, 10);
+	::wcscat_s((m_pszFrameRate + 12), 37, _T(" FPS)"));
+
+	m_GameTimer.GetFrameRate(m_pszFrameRate + 12, 37);
+	::SetWindowText(m_hWnd, m_pszFrameRate);
 }
 
 CGameFramework::~CGameFramework()
