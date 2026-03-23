@@ -39,6 +39,8 @@ public:
 	void OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 	LRESULT CALLBACK OnProcessingWindowMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 
+	void ChangeSwapChainState();
+
 private:
 	HINSTANCE	m_hInstance;
 	HWND		m_hWnd;
@@ -67,7 +69,7 @@ private:
 	ID3D12DescriptorHeap*	m_pd3dRtvDescriptorHeap;
 	UINT					m_nRtvDescriptorIncrementSize;
 
-	// 깊이-스텐시 ㄹ버퍼, 서술자 힙 인터페이스 포인터, 깊이-스텐실 서술자 원소의 크기이다.
+	// 깊이-스텐실 버퍼, 서술자 힙 인터페이스 포인터, 깊이-스텐실 서술자 원소의 크기이다.
 	ID3D12Resource*			m_pd3dDepthStencilBuffer;
 	ID3D12DescriptorHeap*	m_pd3dDsvDescriptorHeap;
 	UINT					m_nDsvDescriptorIncrementSize;
