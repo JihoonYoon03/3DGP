@@ -453,20 +453,22 @@ void CGameFramework::AnimateObjects()
 
 void CGameFramework::WaitForGPUComplete()
 {
-	// 펜스에 값 추가 (0부터 각 스왑체인 버퍼 별로 가진 값 추가)
-	// 각 버퍼에 쌓인 Command 만큼 값이 추가됨
+	// 현재 스왑체인 버퍼의 Fence Value를 1 증가
+	// 이번 작업이 끝나면 증가된 Fence Value를 다시 m_nFenceValues에 찍음
 	UINT64 nFenceValue = ++m_nFenceValues[m_nSwapChainBufferIndex];
 
-	// Command별로 번호를 매기고, CmdQueue에도 그 번호를 건네줌.
+	// cmdQueue의 마지막에 펜스의 값을 nFenceValue로 바꾸라는 신호를 삽입
+	// GPU는 큐에 쌓인 이전 명령들을 다 처리한 뒤 Signal을 실행하게 됨 -> nFenceValue로 값이 바뀜
 	HRESULT hResult = m_pd3dCommandQueue->Signal(m_pd3dFence.Get(), nFenceValue);
-
-	// 펜스에서 리턴해주는 완료된 cmd 개수가 총 cmd 개수보다 적으면 반복
+	
+	// 현재 펜스에 기록된 값(GPU가 실제 완료한 번호)이 목표한 번호보다 낮은지 확인
 	if (m_pd3dFence->GetCompletedValue() < nFenceValue) {
 
-		// 번호까지 완료 시 이벤트 실행
+		// 펜스의 값이 목표값(nFenceValue)에 도달하면 m_hFenceEvent를 발생시키도록 예약
+		// 즉, 모든 작업이 완료되고 현재 스왑체인 버퍼의 m_nFenceValue가 nFenceValue로 바뀌면 이벤트 발생.
 		hResult = m_pd3dFence->SetEventOnCompletion(nFenceValue, m_hFenceEvent);
 
-		// CPU가 GPU 작업 완료를 대기
+		// 이벤트가 발생할 때까지 기다림.
 		::WaitForSingleObject(m_hFenceEvent, INFINITE);
 	}
 }
