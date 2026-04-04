@@ -168,8 +168,7 @@ void CGameFramework::CreateDirect3DDevice()
 	m_nMsaa4xQualityLevels = d3dMsaaQualityLevels.NumQualityLevels;
 
 	// 펜스를 생성하고 펜스 값을 0으로 설정한다.
-	hResult = m_pd3dDevice->CreateFence
-	(
+	hResult = m_pd3dDevice->CreateFence(
 		0,
 		D3D12_FENCE_FLAG_NONE,
 		IID_PPV_ARGS(&m_pd3dFence)
@@ -215,8 +214,7 @@ void CGameFramework::CreateCommandQueueAndList()
 	);
 
 	// 직접(Direct) 명령 리스트를 생성한다. 
-	hResult = m_pd3dDevice->CreateCommandList
-	(
+	hResult = m_pd3dDevice->CreateCommandList(
 		0,
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
 		m_pd3dCommandAllocator.Get(),
@@ -238,8 +236,7 @@ void CGameFramework::CreateRtvAndDsvDescriptorHeaps()
 	d3dDescriptorHeapDesc.NodeMask = 0;
 
 	// 렌더 타겟 서술자 힙(서술자의 개수는 스왑체인 버퍼의 개수)을 생성한다.
-	HRESULT hResult = m_pd3dDevice->CreateDescriptorHeap
-	(
+	HRESULT hResult = m_pd3dDevice->CreateDescriptorHeap(
 		&d3dDescriptorHeapDesc,
 		IID_PPV_ARGS(&m_pd3dRtvDescriptorHeap)
 	);
@@ -250,8 +247,7 @@ void CGameFramework::CreateRtvAndDsvDescriptorHeaps()
 	// 깊이-스텐실 서술자 힙(서술자의 개수는 1)을 생성한다.
 	d3dDescriptorHeapDesc.NumDescriptors = 1;
 	d3dDescriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-	hResult = m_pd3dDevice->CreateDescriptorHeap
-	(
+	hResult = m_pd3dDevice->CreateDescriptorHeap(
 		&d3dDescriptorHeapDesc,
 		IID_PPV_ARGS(&m_pd3dDsvDescriptorHeap)
 	);
@@ -267,13 +263,11 @@ void CGameFramework::CreateRenderTargetViews()
 
 	for (UINT i = 0; i < m_nSwapChainBuffers; ++i)
 	{
-		m_pdxgiSwapChain->GetBuffer
-		(
+		m_pdxgiSwapChain->GetBuffer(
 			i,
 			IID_PPV_ARGS(&m_ppd3dSwapChainBackBuffers[i])
 		);
-		m_pd3dDevice->CreateRenderTargetView
-		(
+		m_pd3dDevice->CreateRenderTargetView	(
 			m_ppd3dSwapChainBackBuffers[i].Get(),
 			NULL,
 			d3dRtvCPUDescriptorHandle
@@ -310,8 +304,7 @@ void CGameFramework::CreateDepthStencilView()
 	d3dClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	d3dClearValue.DepthStencil.Depth = 1.0f;
 	d3dClearValue.DepthStencil.Stencil = 0;
-	m_pd3dDevice->CreateCommittedResource
-	(
+	m_pd3dDevice->CreateCommittedResource(
 		&d3dHeapProperties,
 		D3D12_HEAP_FLAG_NONE,
 		&d3dResourceDesc,
@@ -323,8 +316,7 @@ void CGameFramework::CreateDepthStencilView()
 	// 깊이-스텐실 버퍼 뷰를 생성한다.
 	D3D12_CPU_DESCRIPTOR_HANDLE d3dDsvCPUDescriptorHandle =
 		m_pd3dDsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	m_pd3dDevice->CreateDepthStencilView
-	(
+	m_pd3dDevice->CreateDepthStencilView(
 		m_pd3dDepthStencilBuffer.Get(),
 		NULL,
 		d3dDsvCPUDescriptorHandle
@@ -437,8 +429,7 @@ void CGameFramework::ChangeSwapChainState()
 
 	DXGI_SWAP_CHAIN_DESC dxgiSwapChainDesc;
 	m_pdxgiSwapChain->GetDesc(&dxgiSwapChainDesc);
-	m_pdxgiSwapChain->ResizeBuffers
-	(
+	m_pdxgiSwapChain->ResizeBuffers(
 		m_nSwapChainBuffers,
 		m_nWndClientWidth,
 		m_nWndClientHeight,
@@ -462,10 +453,20 @@ void CGameFramework::AnimateObjects()
 
 void CGameFramework::WaitForGPUComplete()
 {
+	// 펜스에 값 추가 (0부터 각 스왑체인 버퍼 별로 가진 값 추가)
+	// 각 버퍼에 쌓인 Command 만큼 값이 추가됨
 	UINT64 nFenceValue = ++m_nFenceValues[m_nSwapChainBufferIndex];
+
+	// Command별로 번호를 매기고, CmdQueue에도 그 번호를 건네줌.
 	HRESULT hResult = m_pd3dCommandQueue->Signal(m_pd3dFence.Get(), nFenceValue);
+
+	// 펜스에서 리턴해주는 완료된 cmd 개수가 총 cmd 개수보다 적으면 반복
 	if (m_pd3dFence->GetCompletedValue() < nFenceValue) {
+
+		// 번호까지 완료 시 이벤트 실행
 		hResult = m_pd3dFence->SetEventOnCompletion(nFenceValue, m_hFenceEvent);
+
+		// CPU가 GPU 작업 완료를 대기
 		::WaitForSingleObject(m_hFenceEvent, INFINITE);
 	}
 }
@@ -527,8 +528,7 @@ void CGameFramework::FrameAdvance()
 		&d3dDsvCPUDescriptorHandle);
 
 	float pfClearColor[4] = { 0.0f, 0.125f, 0.3f, 1.0f };
-	m_pd3dCommandList->ClearRenderTargetView
-	(
+	m_pd3dCommandList->ClearRenderTargetView(
 		d3dRtvCPUDescriptorHandle,
 		pfClearColor,
 		0,
@@ -536,8 +536,7 @@ void CGameFramework::FrameAdvance()
 	);
 
 	// 원하는 값으로 깊이-스텐실(뷰)을 지운다.
-	m_pd3dCommandList->ClearDepthStencilView
-	(
+	m_pd3dCommandList->ClearDepthStencilView(
 		d3dDsvCPUDescriptorHandle,
 		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
 		1.0f,
@@ -546,9 +545,9 @@ void CGameFramework::FrameAdvance()
 		NULL
 	);
 
+	// 렌더링 코드는 여기에 추가될 것이다. 
 	if (m_pScene) m_pScene->Render(m_pd3dCommandList.Get());
 
-	// 렌더링 코드는 여기에 추가될 것이다. 
 
 
 	/*
@@ -565,8 +564,7 @@ void CGameFramework::FrameAdvance()
 
 	// 명령 리스트를 명령 큐에 추가하여 실행한다.
 	ID3D12CommandList* ppd3dCommandLists[] = { m_pd3dCommandList.Get()};
-	m_pd3dCommandQueue->ExecuteCommandLists
-	(
+	m_pd3dCommandQueue->ExecuteCommandLists(
 		_countof(ppd3dCommandLists),
 		ppd3dCommandLists
 	);

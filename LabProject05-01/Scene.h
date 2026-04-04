@@ -24,7 +24,10 @@ public:
 
 	// 루트 시그너쳐를 나타내는 인터페이스 포인터이다. 
 	// Root Signature - GPU 파이프라인과 데이터 사이의 통로, 계약서
-	// 셰이더 실행 시 어떤 종류의 데이터를 어떤 슬롯에 넘겨받을 것인지 정의.	
+	// 셰이더 실행 시 어떤 종류의 데이터를 어떤 슬롯에 넘겨받을 것인지 정의.
+	// GPU가 읽을 데이터의 목차임.
+	// Root Parameter - DescriptorTable(DescHeap의 집합), Rood Descriptor(CBV), Root Constant(상수)
+	// DescTable - 셰이더가 DescHeap에서의 어디서부터 어디까지 읽어들일지 범위 지정
 	ComPtr<ID3D12RootSignature> m_pd3dGraphicsRootSignature;
 
 	// 파이프라인 상태를 나타내는 인터페이스 포인터이다.

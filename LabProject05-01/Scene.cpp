@@ -27,7 +27,7 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 		&pd3dErrorBlob
 		)))	{
 
-		pd3dDevice->CreateRootSignature (
+		pd3dDevice->CreateRootSignature(
 			0,
 			pd3dSignatureBlob->GetBufferPointer(),
 			pd3dSignatureBlob->GetBufferSize(),
