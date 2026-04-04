@@ -69,6 +69,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
 	gGameFramework.OnDestroy();
 
+	// 메모리 누수 체크
+#if defined(_DEBUG)
+
+	ComPtr<IDXGIDebug1> pdxgiDebug;
+	DXGIGetDebugInterface1(0, IID_PPV_ARGS(&pdxgiDebug));
+	HRESULT hResult = pdxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_DETAIL);
+
+#endif
+
 	return (int)msg.wParam;
 }
 

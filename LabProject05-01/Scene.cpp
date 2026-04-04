@@ -17,42 +17,39 @@ void CScene::CreateGraphicsRootSignature(ID3D12Device* pd3dDevice)
 	d3dRootSignatureDesc.pStaticSamplers = NULL;
 	d3dRootSignatureDesc.Flags =
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
-	ID3DBlob* pd3dSignatureBlob = NULL;
-	ID3DBlob* pd3dErrorBlob = NULL;
-	::D3D12SerializeRootSignature
-	(
+	ComPtr<ID3DBlob> pd3dSignatureBlob;
+	ComPtr<ID3DBlob> pd3dErrorBlob;
+	
+	if (SUCCEEDED(::D3D12SerializeRootSignature(
 		&d3dRootSignatureDesc,
 		D3D_ROOT_SIGNATURE_VERSION_1,
 		&pd3dSignatureBlob,
 		&pd3dErrorBlob
-	);
-	pd3dDevice->CreateRootSignature
-	(
-		0,
-		pd3dSignatureBlob->GetBufferPointer(),
-		pd3dSignatureBlob->GetBufferSize(),
-		__uuidof(ID3D12RootSignature),
-		(void**)&m_pd3dGraphicsRootSignature
-	);
+		)))	{
 
-	if (pd3dSignatureBlob) pd3dSignatureBlob->Release();
-	if (pd3dErrorBlob) pd3dErrorBlob->Release();
+		pd3dDevice->CreateRootSignature (
+			0,
+			pd3dSignatureBlob->GetBufferPointer(),
+			pd3dSignatureBlob->GetBufferSize(),
+			IID_PPV_ARGS(&m_pd3dGraphicsRootSignature)
+		);
+	}
+
 }
 
 void CScene::CreateGraphicsPipelineState(ID3D12Device* pd3dDevice)
 {
 	//정점 셰이더와 픽셀 셰이더를 생성한다.
-	ID3DBlob *pd3dVertexShaderBlob = NULL;
-	ID3DBlob* pd3dPixelShaderBlob = NULL;
-	ID3DBlob* pd3dErrorBlob = NULL;
+	ComPtr<ID3DBlob> pd3dVertexShaderBlob;
+	ComPtr<ID3DBlob> pd3dPixelShaderBlob;
+	ComPtr<ID3DBlob> pd3dErrorBlob;
 	UINT nCompileFlags = 0;
 
 #if defined(_DEBUG)
 	nCompileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #endif
 
-	HRESULT hr = D3DCompileFromFile
-	(
+	HRESULT hr = D3DCompileFromFile(
 		L"Shaders.hlsl",
 		NULL,
 		NULL,
@@ -66,21 +63,18 @@ void CScene::CreateGraphicsPipelineState(ID3D12Device* pd3dDevice)
 
 	if (FAILED(hr))
 	{
-		if (pd3dErrorBlob)
-		{
+		if (pd3dErrorBlob) {
 			// 출력 창에 에러 메시지를 출력합니다.
 			OutputDebugStringA((char*)pd3dErrorBlob->GetBufferPointer());
-			pd3dErrorBlob->Release();
+			pd3dErrorBlob.Reset();
 		}
-		else
-		{
+		else {
 			// 에러 Blob조차 없다면 파일을 아예 찾지 못한 것입니다.
 			OutputDebugStringA("Shaders.hlsl 파일을 찾을 수 없습니다.\n");
 		}
 	}
 
-	D3DCompileFromFile
-	(
+	D3DCompileFromFile(
 		L"Shaders.hlsl",
 		NULL,
 		NULL,
@@ -126,7 +120,7 @@ void CScene::CreateGraphicsPipelineState(ID3D12Device* pd3dDevice)
 	// 그래픽 파이프라인 상태를 설정한다.
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC d3dPipelineStateDesc;
 	::ZeroMemory(&d3dPipelineStateDesc, sizeof(D3D12_GRAPHICS_PIPELINE_STATE_DESC));
-	d3dPipelineStateDesc.pRootSignature = m_pd3dGraphicsRootSignature;
+	d3dPipelineStateDesc.pRootSignature = m_pd3dGraphicsRootSignature.Get();
 	d3dPipelineStateDesc.VS.pShaderBytecode = pd3dVertexShaderBlob->GetBufferPointer();
 	d3dPipelineStateDesc.VS.BytecodeLength = pd3dVertexShaderBlob->GetBufferSize();
 	d3dPipelineStateDesc.PS.pShaderBytecode = pd3dPixelShaderBlob->GetBufferPointer();
@@ -144,27 +138,17 @@ void CScene::CreateGraphicsPipelineState(ID3D12Device* pd3dDevice)
 	d3dPipelineStateDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	d3dPipelineStateDesc.SampleDesc.Count = 1;
 	d3dPipelineStateDesc.SampleDesc.Quality = 0;
-	pd3dDevice->CreateGraphicsPipelineState
-	(
+	pd3dDevice->CreateGraphicsPipelineState(
 		&d3dPipelineStateDesc,
-		__uuidof(ID3D12PipelineState),
-		(void**)&m_pd3dPipelineState
+		IID_PPV_ARGS(&m_pd3dPipelineState)
 	);
 
-	if (pd3dVertexShaderBlob) pd3dVertexShaderBlob->Release();
-	if (pd3dPixelShaderBlob) pd3dPixelShaderBlob->Release();
 }
 
 void CScene::BuildObjects(ID3D12Device* pd3dDevice)
 {
 	CreateGraphicsRootSignature(pd3dDevice);
 	CreateGraphicsPipelineState(pd3dDevice);
-}
-
-void CScene::ReleaseObjects()
-{
-	if (m_pd3dGraphicsRootSignature) m_pd3dGraphicsRootSignature->Release();
-	if (m_pd3dPipelineState) m_pd3dPipelineState->Release();
 }
 
 bool CScene::OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam)
@@ -189,10 +173,10 @@ void CScene::AnimateObjects(float fTimeElapsed)
 void CScene::PrepareRender(ID3D12GraphicsCommandList* pd3dCommandList)
 {
 	// 그래픽 루트 시그너쳐를 설정한다.
-	pd3dCommandList->SetGraphicsRootSignature(m_pd3dGraphicsRootSignature);
+	pd3dCommandList->SetGraphicsRootSignature(m_pd3dGraphicsRootSignature.Get());
 
 	// 파이프라인 상태를 설정한다. 
-	pd3dCommandList->SetPipelineState(m_pd3dPipelineState);
+	pd3dCommandList->SetPipelineState(m_pd3dPipelineState.Get());
 
 	// 프리미티브 토폴로지(삼각형 리스트)를 설정한다. 
 	pd3dCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -201,10 +185,10 @@ void CScene::PrepareRender(ID3D12GraphicsCommandList* pd3dCommandList)
 void CScene::Render(ID3D12GraphicsCommandList* pd3dCommandList)
 {
 	// 그래픽 루트 시그니쳐를 설정한다
-	pd3dCommandList->SetGraphicsRootSignature(m_pd3dGraphicsRootSignature);
+	pd3dCommandList->SetGraphicsRootSignature(m_pd3dGraphicsRootSignature.Get());
 
 	// 파이프라인 상태를 설정한다
-	pd3dCommandList->SetPipelineState(m_pd3dPipelineState);
+	pd3dCommandList->SetPipelineState(m_pd3dPipelineState.Get());
 
 	// 프리미티브 토폴로지(삼각형 리스트)를 설정한다
 	pd3dCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

@@ -14,6 +14,7 @@
 #include <memory.h>
 #include <tchar.h>
 
+#include <memory>
 #include <string>
 #include <wrl.h>
 #include <shellapi.h>
@@ -35,6 +36,8 @@
 #pragma comment(lib, "dxgi.lib")
 
 #pragma comment(lib, "dxguid.lib")
+
+using namespace Microsoft::WRL;
 
 #define FRAME_BUFFER_WIDTH	800
 #define FRAME_BUFFER_HEIGHT	600

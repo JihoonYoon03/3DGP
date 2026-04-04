@@ -15,7 +15,6 @@ public:
 	void CreateGraphicsPipelineState(ID3D12Device* pd3dDevice);
 
 	void BuildObjects(ID3D12Device* pd3dDevice);
-	void ReleaseObjects();
 
 	bool ProcessInput();
 	void AnimateObjects(float fTimeElapsed);
@@ -23,9 +22,11 @@ public:
 	void PrepareRender(ID3D12GraphicsCommandList* pd3dCommandList);
 	void Render(ID3D12GraphicsCommandList* pd3dCommandList);
 
-	//루트 시그너쳐를 나타내는 인터페이스 포인터이다. 
-	ID3D12RootSignature* m_pd3dGraphicsRootSignature = NULL;
+	// 루트 시그너쳐를 나타내는 인터페이스 포인터이다. 
+	// Root Signature - GPU 파이프라인과 데이터 사이의 통로, 계약서
+	// 셰이더 실행 시 어떤 종류의 데이터를 어떤 슬롯에 넘겨받을 것인지 정의.	
+	ComPtr<ID3D12RootSignature> m_pd3dGraphicsRootSignature;
 
-	//파이프라인 상태를 나타내는 인터페이스 포인터이다.
-	ID3D12PipelineState *m_pd3dPipelineState = NULL;
+	// 파이프라인 상태를 나타내는 인터페이스 포인터이다.
+	ComPtr<ID3D12PipelineState> m_pd3dPipelineState;
 };

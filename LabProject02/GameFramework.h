@@ -39,11 +39,19 @@ public:
 	LRESULT CALLBACK OnProcessingWindowMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 
 private:
+	// 아래 구역은 그려질 화면 크기와 관련 있는 부분이다.
+	// -------------------------------
 	HINSTANCE	m_hInstance;
 	HWND		m_hWnd;
 
 	int			m_nWndClientWidth;
 	int			m_nWndClientHeight;
+
+	// 뷰포트와 씨저 사각형이다.
+	D3D12_VIEWPORT	m_d3dViewport;
+	D3D12_RECT		m_d3dScissorRect;
+	// -------------------------------
+	
 
 	// DXGI 팩토리 인터페이스에 대한 포인터
 	IDXGIFactory4*		m_pDXGIFactory;
@@ -66,7 +74,7 @@ private:
 	ID3D12DescriptorHeap*	m_pd3dRtvDescriptorHeap;
 	UINT					m_nRtvDescriptorIncrementSize;
 
-	// 깊이-스텐시 ㄹ버퍼, 서술자 힙 인터페이스 포인터, 깊이-스텐실 서술자 원소의 크기이다.
+	// 깊이-스텐실 버퍼, 서술자 힙 인터페이스 포인터, 깊이-스텐실 서술자 원소의 크기이다.
 	ID3D12Resource*			m_pd3dDepthStencilBuffer;
 	ID3D12DescriptorHeap*	m_pd3dDsvDescriptorHeap;
 	UINT					m_nDsvDescriptorIncrementSize;
@@ -83,9 +91,5 @@ private:
 	ID3D12Fence*	m_pd3dFence;
 	UINT64			m_nFenceValue;
 	HANDLE			m_hFenceEvent;
-
-	// 뷰포트와 씨저 사각형이다.
-	D3D12_VIEWPORT	m_d3dViewport;
-	D3D12_RECT		m_d3dScissorRect;
 };
 
