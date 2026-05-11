@@ -4,39 +4,41 @@
 
 #include "Timer.h"
 
+using namespace Microsoft::WRL;
+
 class CGameFramework {
 public:
 	CGameFramework();
 	~CGameFramework();
 
-	// í”„ë ˆìž„ì›Œí¬ ì´ˆê¸°í™” í•¨ìˆ˜ì´ë‹¤ (ì£¼ ìœˆë„ìš° ìƒì„± ì‹œ í˜¸ì¶œ)
+	// ÇÁ·¹ÀÓ¿öÅ© ÃÊ±âÈ­ ÇÔ¼öÀÌ´Ù (ÁÖ À©µµ¿ì »ý¼º ½Ã È£Ãâ)
 	bool OnCreate(HINSTANCE hInstance, HWND hMainWnd);
 	
 	void OnDestroy();
 
-	// ìŠ¤ì™‘ ì²´ì¸, ë””ë°”ì´ìŠ¤, ì„œìˆ ìž íž™, ëª…ë ¹ í/í• ë‹¹ìž/ë¦¬ìŠ¤íŠ¸ë¥¼ ìƒì„±í•˜ëŠ” í•¨ìˆ˜
+	// ½º¿Ò Ã¼ÀÎ, µð¹ÙÀÌ½º, ¼­¼úÀÚ Èü, ¸í·É Å¥/ÇÒ´çÀÚ/¸®½ºÆ®¸¦ »ý¼ºÇÏ´Â ÇÔ¼ö
 	void CreateSwapChain();
 	void CreateRtvAndDsvDescriptorHeaps();
 	void CreateDirect3DDevice();
 	void CreateCommandQueueAndList();
 
-	// ë Œë” íƒ€ê²Ÿ ë·°ì™€ ê¹Šì´-ìŠ¤í…ì‹¤ ë·°ë¥¼ ìƒì„±í•˜ëŠ” í•¨ìˆ˜
+	// ·»´õ Å¸°Ù ºä¿Í ±íÀÌ-½ºÅÙ½Ç ºä¸¦ »ý¼ºÇÏ´Â ÇÔ¼ö
 	void CreateRenderTargetViews();
 	void CreateDepthStencilView();
 
-	// ë Œë”ë§í•  ë©”ì‰¬ì™€ ê²Œìž„ ê°ì²´ë¥¼ ìƒì„±í•˜ê³  ì†Œë©¸í•˜ëŠ” í•¨ìˆ˜
+	// ·»´õ¸µÇÒ ¸Þ½¬¿Í °ÔÀÓ °´Ã¼¸¦ »ý¼ºÇÏ°í ¼Ò¸êÇÏ´Â ÇÔ¼ö
 	void BuildObjects();
 	void ReleaseObjects();
 
-	// í”„ë ˆìž„ì›Œí¬ì˜ í•µì‹¬(ì‚¬ìš©ìž ìž…ë ¥, ì• ë‹ˆë©”ì´ì…˜, ë Œë”ë§)ì„ êµ¬ì„±í•˜ëŠ” í•¨ìˆ˜
+	// ÇÁ·¹ÀÓ¿öÅ©ÀÇ ÇÙ½É(»ç¿ëÀÚ ÀÔ·Â, ¾Ö´Ï¸ÞÀÌ¼Ç, ·»´õ¸µ)À» ±¸¼ºÇÏ´Â ÇÔ¼ö
 	void ProcessInput();
 	void AnimateObjects();
 	void FrameAdvance();
 
-	// CPUì™€ GPUë¥¼ ë™ê¸°í™”í•˜ëŠ” í•¨ìˆ˜
+	// CPU¿Í GPU¸¦ µ¿±âÈ­ÇÏ´Â ÇÔ¼ö
 	void WaitForGPUComplete();
 
-	// ìœˆë„ìš°ì˜ ë©”ì‹œì§€(í‚¤ë³´ë“œ, ë§ˆìš°ìŠ¤ ìž…ë ¥)ë¥¼ ì²˜ë¦¬í•˜ëŠ” í•¨ìˆ˜ì´ë‹¤.
+	// À©µµ¿ìÀÇ ¸Þ½ÃÁö(Å°º¸µå, ¸¶¿ì½º ÀÔ·Â)¸¦ Ã³¸®ÇÏ´Â ÇÔ¼öÀÌ´Ù.
 	void OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 	void OnProcessingKeyboardMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
 	LRESULT CALLBACK OnProcessingWindowMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam);
@@ -51,60 +53,60 @@ private:
 
 	int			m_nWndClientWidth;
 	int			m_nWndClientHeight;
+	
+	// DXGI ÆÑÅä¸® ÀÎÅÍÆäÀÌ½º¿¡ ´ëÇÑ Æ÷ÀÎÅÍ
+	ComPtr<IDXGIFactory4>		m_pdxgiFactory;
+	// ½º¿Ò Ã¼ÀÎ ÀÎÅÍÆäÀÌ½º¿¡ ´ëÇÑ Æ÷ÀÎÅÍ. ÁÖ·Î µð½ºÇÃ·¹ÀÌ¸¦ Á¦¾îÇÏ±â À§ÇØ ÇÊ¿ä
+	ComPtr<IDXGISwapChain3>		m_pdxgiSwapChain;
+	// Direct3D µð¹ÙÀÌ½º ÀÎÅÍÆäÀÌ½º¿¡ ´ëÇÑ Æ÷ÀÎÅÍÀÌ´Ù. ÁÖ·Î ¸®¼Ò½º¸¦ »ý¼ºÇÏ±â À§ÇÏ¿© ÇÊ¿äÇÏ´Ù.
+	ComPtr<ID3D12Device>		m_pd3dDevice;
 
-	// DXGI íŒ©í† ë¦¬ ì¸í„°íŽ˜ì´ìŠ¤ì— ëŒ€í•œ í¬ì¸í„°
-	IDXGIFactory4*		m_pdxgiFactory;
-	// ìŠ¤ì™‘ ì²´ì¸ ì¸í„°íŽ˜ì´ìŠ¤ì— ëŒ€í•œ í¬ì¸í„°. ì£¼ë¡œ ë””ìŠ¤í”Œë ˆì´ë¥¼ ì œì–´í•˜ê¸° ìœ„í•´ í•„ìš”
-	IDXGISwapChain3*	m_pdxgiSwapChain;
-	// Direct3D ë””ë°”ì´ìŠ¤ ì¸í„°íŽ˜ì´ìŠ¤ì— ëŒ€í•œ í¬ì¸í„°ì´ë‹¤. ì£¼ë¡œ ë¦¬ì†ŒìŠ¤ë¥¼ ìƒì„±í•˜ê¸° ìœ„í•˜ì—¬ í•„ìš”í•˜ë‹¤.
-	ID3D12Device*		m_pd3dDevice;
-
-	// MSAA ë‹¤ì¤‘ ìƒ˜í”Œë§ì„ í™œì„±í™”í•˜ê³  ë‹¤ì¤‘ ìƒ˜í”Œë§ ë ˆë²¨ì„ ì„¤ì •í•œë‹¤.
+	// MSAA ´ÙÁß »ùÇÃ¸µÀ» È°¼ºÈ­ÇÏ°í ´ÙÁß »ùÇÃ¸µ ·¹º§À» ¼³Á¤ÇÑ´Ù.
 	bool m_bMsaa4xEnable = false;
 	UINT m_nMsaa4xQualityLevels = 0;
 
-	// ìŠ¤ì™‘ ì²´ì¸ì˜ í›„ë©´ ë²„í¼ì˜ ê°œìˆ˜ì´ë‹¤.
+	// ½º¿Ò Ã¼ÀÎÀÇ ÈÄ¸é ¹öÆÛÀÇ °³¼öÀÌ´Ù.
 	static const UINT	m_nSwapChainBuffers = 2;
-	// í˜„ìž¬ ìŠ¤ì™‘ ì²´ì¸ì˜ í›„ë©´ ë²„í¼ ì¸ë±ìŠ¤ì´ë‹¤.
+	// ÇöÀç ½º¿Ò Ã¼ÀÎÀÇ ÈÄ¸é ¹öÆÛ ÀÎµ¦½ºÀÌ´Ù.
 	UINT				m_nSwapChainBufferIndex;
 
-	// ë Œë” íƒ€ê²Ÿ ë²„í¼, ì„œìˆ ìž íž™ ì¸í„°íŽ˜ì´ìŠ¤ í¬ì¸í„°, ë Œë” íƒ€ê²Ÿ ì„œìˆ ìž ì›ì†Œì˜ í¬ê¸°ì´ë‹¤.
-	ID3D12Resource*			m_ppd3dSwapChainBackBuffers[m_nSwapChainBuffers];
-	ID3D12DescriptorHeap*	m_pd3dRtvDescriptorHeap;
-	UINT					m_nRtvDescriptorIncrementSize;
+	// ·»´õ Å¸°Ù ¹öÆÛ, ¼­¼úÀÚ Èü ÀÎÅÍÆäÀÌ½º Æ÷ÀÎÅÍ, ·»´õ Å¸°Ù ¼­¼úÀÚ ¿ø¼ÒÀÇ Å©±âÀÌ´Ù.
+	ComPtr <ID3D12Resource>			m_ppd3dSwapChainBackBuffers[m_nSwapChainBuffers];
+	ComPtr <ID3D12DescriptorHeap>	m_pd3dRtvDescriptorHeap;
+	UINT							m_nRtvDescriptorIncrementSize;
 
-	// ê¹Šì´-ìŠ¤í…ì‹¤ ë²„í¼, ì„œìˆ ìž íž™ ì¸í„°íŽ˜ì´ìŠ¤ í¬ì¸í„°, ê¹Šì´-ìŠ¤í…ì‹¤ ì„œìˆ ìž ì›ì†Œì˜ í¬ê¸°ì´ë‹¤.
-	ID3D12Resource*			m_pd3dDepthStencilBuffer;
-	ID3D12DescriptorHeap*	m_pd3dDsvDescriptorHeap;
-	UINT					m_nDsvDescriptorIncrementSize;
+	// ±íÀÌ-½ºÅÙ½Ç ¹öÆÛ, ¼­¼úÀÚ Èü ÀÎÅÍÆäÀÌ½º Æ÷ÀÎÅÍ, ±íÀÌ-½ºÅÙ½Ç ¼­¼úÀÚ ¿ø¼ÒÀÇ Å©±âÀÌ´Ù.
+	ComPtr<ID3D12Resource>			m_pd3dDepthStencilBuffer;
+	ComPtr<ID3D12DescriptorHeap>	m_pd3dDsvDescriptorHeap;
+	UINT							m_nDsvDescriptorIncrementSize;
 
-	// ëª…ë ¹ í, ëª…ë ¹ í• ë‹¹ìž, ëª…ë ¹ ë¦¬ìŠ¤íŠ¸ ì¸í„°íŽ˜ì´ìŠ¤ í¬ì¸í„°ì´ë‹¤.
-	ID3D12CommandQueue*			m_pd3dCommandQueue;
-	ID3D12CommandAllocator*		m_pd3dCommandAllocator;
-	ID3D12GraphicsCommandList*	m_pd3dCommandList;
+	// ¸í·É Å¥, ¸í·É ÇÒ´çÀÚ, ¸í·É ¸®½ºÆ® ÀÎÅÍÆäÀÌ½º Æ÷ÀÎÅÍÀÌ´Ù.
+	ComPtr<ID3D12CommandQueue>			m_pd3dCommandQueue;
+	ComPtr<ID3D12CommandAllocator>		m_pd3dCommandAllocator;
+	ComPtr<ID3D12GraphicsCommandList>	m_pd3dCommandList;
 
-	// ê·¸ëž˜í”½ìŠ¤ íŒŒì´í”„ë¼ì¸ ìƒíƒœ ê°ì²´ì— ëŒ€í•œ ì¸í„°íŽ˜ì´ìŠ¤ í¬ì¸í„°ì´ë‹¤.
-	ID3D12PipelineState*	m_pd3dPipelineState;
+	// ±×·¡ÇÈ½º ÆÄÀÌÇÁ¶óÀÎ »óÅÂ °´Ã¼¿¡ ´ëÇÑ ÀÎÅÍÆäÀÌ½º Æ÷ÀÎÅÍÀÌ´Ù.
+	ComPtr<ID3D12PipelineState>		m_pd3dPipelineState;
 
-	// íŽœìŠ¤ ì¸í„°íŽ˜ì´ìŠ¤ í¬ì¸í„°, íŽœìŠ¤ì˜ ê°’, ì´ë²¤íŠ¸ í•¸ë“¤ì´ë‹¤.
-	ID3D12Fence*	m_pd3dFence;
-	UINT64			m_nFenceValue;
-	HANDLE			m_hFenceEvent;
+	// Ææ½º ÀÎÅÍÆäÀÌ½º Æ÷ÀÎÅÍ, Ææ½ºÀÇ °ª, ÀÌº¥Æ® ÇÚµéÀÌ´Ù.
+	ComPtr<ID3D12Fence>	m_pd3dFence;
+	UINT64				m_nFenceValue;
+	HANDLE				m_hFenceEvent;
 
-	// ë·°í¬íŠ¸ì™€ ì”¨ì € ì‚¬ê°í˜•ì´ë‹¤.
+	// ºäÆ÷Æ®¿Í ¾¾Àú »ç°¢ÇüÀÌ´Ù.
 	D3D12_VIEWPORT	m_d3dViewport;
 	D3D12_RECT		m_d3dScissorRect;
 
-	// ë‹¤ìŒì€ ê²Œìž„ í”„ë ˆìž„ì›Œí¬ì—ì„œ ì‚¬ìš©í•  íƒ€ì´ë¨¸ì´ë‹¤.
+	// ´ÙÀ½Àº °ÔÀÓ ÇÁ·¹ÀÓ¿öÅ©¿¡¼­ »ç¿ëÇÒ Å¸ÀÌ¸ÓÀÌ´Ù.
 	CGameTimer m_GameTimer;
 
-	// ë‹¤ìŒì€ í”„ë ˆìž„ ë ˆì´íŠ¸ë¥¼ ì£¼ ìœˆë„ìš°ì˜ ìº¡ì…˜ì— ì¶œë ¥í•˜ê¸° ìœ„í•œ ë¬¸ìžì—´ì´ë‹¤.
+	// ´ÙÀ½Àº ÇÁ·¹ÀÓ ·¹ÀÌÆ®¸¦ ÁÖ À©µµ¿ìÀÇ Ä¸¼Ç¿¡ Ãâ·ÂÇÏ±â À§ÇÑ ¹®ÀÚ¿­ÀÌ´Ù.
 	_TCHAR m_pszFrameRate[50];
 
-	// í›„ë©´ë²„í¼ë§ˆë‹¤ í˜„ìž¬ íŽœìŠ¤ ê°’ì„ ê´€ë¦¬í•˜ê¸° ìœ„í•œ ë©¤ë²„ ë³€ìˆ˜.
+	// ÈÄ¸é¹öÆÛ¸¶´Ù ÇöÀç Ææ½º °ªÀ» °ü¸®ÇÏ±â À§ÇÑ ¸â¹ö º¯¼ö.
 	UINT64 m_nFenceValues[m_nSwapChainBuffers];
 
-	// ì”¬ì„ ìœ„í•œ ë©¤ë²„ ë³€ìˆ˜
+	// ¾ÀÀ» À§ÇÑ ¸â¹ö º¯¼ö
 	CScene* m_pScene;
 };
 
