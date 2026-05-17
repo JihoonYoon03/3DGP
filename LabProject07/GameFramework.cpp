@@ -1,9 +1,9 @@
 #include "stdafx.h"
 #include "GameFramework.h"
+#include "Camera.h"
 
 CGameFramework::CGameFramework()
 {
-	
 	m_nRtvDescriptorIncrementSize = 0;
 
 	m_nDsvDescriptorIncrementSize = 0;
@@ -20,8 +20,6 @@ CGameFramework::CGameFramework()
 	}
 
 	m_pScene = NULL;
-	m_d3dViewport = { 0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT, 0.0f, 1.0f };
-	m_d3dScissorRect = { 0, 0, FRAME_BUFFER_WIDTH, FRAME_BUFFER_HEIGHT };
 
 	_tcscpy_s(m_pszFrameRate, _T("LapProject ("));
 }
@@ -53,39 +51,8 @@ void CGameFramework::OnDestroy()
 
 	::CloseHandle(m_hFenceEvent);
 
-	for (int i = 0; i < m_nSwapChainBuffers; ++i)
-	{
-		if (m_ppd3dSwapChainBackBuffers[i])
-		{
-			m_ppd3dSwapChainBackBuffers[i]->Release();
-		}
-	}
-
-	if (m_pd3dRtvDescriptorHeap)	m_pd3dRtvDescriptorHeap->Release();
-
-	if (m_pd3dDepthStencilBuffer)	m_pd3dDepthStencilBuffer->Release();
-	if (m_pd3dDsvDescriptorHeap)	m_pd3dDsvDescriptorHeap->Release();
-
-	if (m_pd3dCommandAllocator)		m_pd3dCommandAllocator->Release();
-	if (m_pd3dCommandQueue)			m_pd3dCommandQueue->Release();
-	if (m_pd3dPipelineState)		m_pd3dPipelineState->Release();
-	if (m_pd3dCommandList)			m_pd3dCommandList->Release();
-
-	if (m_pd3dFence)				m_pd3dFence->Release();
-
+	// swapchain 해제 전에 창모드 전환 필수
 	m_pdxgiSwapChain->SetFullscreenState(FALSE, NULL);
-	if (m_pdxgiSwapChain)			m_pdxgiSwapChain->Release();
-	if (m_pd3dDevice)				m_pd3dDevice->Release();
-	if (m_pdxgiFactory)				m_pdxgiFactory->Release();
-
-#if defined(_DEBUG)
-
-	IDXGIDebug1* pdxgiDebug = NULL;
-	DXGIGetDebugInterface1(0, __uuidof(IDXGIDebug1), (void**)&pdxgiDebug);
-	HRESULT hResult = pdxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_DETAIL);
-	pdxgiDebug->Release();
-
-#endif
 }
 
 void CGameFramework::CreateSwapChain()
@@ -113,12 +80,16 @@ void CGameFramework::CreateSwapChain()
 	// 전체화면 모드에서 바탕화면의 해상도를 스왑체인(후면버퍼)의 크기에 맞게 변경한다.
 	dxgiSwapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
+	ComPtr<IDXGISwapChain> pSwapChain;
+
 	HRESULT hResult = m_pdxgiFactory->CreateSwapChain
 	(
 		m_pd3dCommandQueue.Get(),
 		&dxgiSwapChainDesc,
-		(IDXGISwapChain**)m_pdxgiSwapChain.GetAddressOf()
+		pSwapChain.GetAddressOf()
 	);
+	pSwapChain.As(&m_pdxgiSwapChain);
+
 	m_nSwapChainBufferIndex = m_pdxgiSwapChain->GetCurrentBackBufferIndex();
 
 	hResult = m_pdxgiFactory->MakeWindowAssociation(m_hWnd, DXGI_MWA_NO_ALT_ENTER);
@@ -135,23 +106,23 @@ void CGameFramework::CreateDirect3DDevice()
 	UINT nDXGIFactoryFlags = 0;
 
 #if defined(_DEBUG)
-	ID3D12Debug* pd3dDebugController = NULL;
-	hResult = D3D12GetDebugInterface(__uuidof(ID3D12Debug), (void**)&pd3dDebugController);
+	ComPtr<ID3D12Debug> pd3dDebugController;
+	hResult = D3D12GetDebugInterface(IID_PPV_ARGS(&pd3dDebugController));
 
 	if (pd3dDebugController)
 	{
 		pd3dDebugController->EnableDebugLayer();
-		pd3dDebugController->Release();
 	}
 	nDXGIFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 #endif
 
-	hResult = ::CreateDXGIFactory2(nDXGIFactoryFlags, __uuidof(IDXGIFactory4), (void**)&m_pdxgiFactory);
+	hResult = ::CreateDXGIFactory2(nDXGIFactoryFlags, IID_PPV_ARGS(&m_pdxgiFactory));
 
-	IDXGIAdapter1* pd3dAdapter = NULL;
-
+	ComPtr<IDXGIAdapter1> pd3dAdapter = NULL;
+	
 	// 모든 하드웨어 어댑터에 대하여 특성 레벨 12.0을 지원하는 하드웨어 디바이스를 생성한다.
 	for (UINT i = 0; DXGI_ERROR_NOT_FOUND != m_pdxgiFactory->EnumAdapters1(i, &pd3dAdapter); ++i)
+
 	{
 		DXGI_ADAPTER_DESC1 dxgiAdapterDesc;
 		pd3dAdapter->GetDesc1(&dxgiAdapterDesc);
@@ -159,12 +130,11 @@ void CGameFramework::CreateDirect3DDevice()
 		if (dxgiAdapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE)
 			continue;
 
-		if (SUCCEEDED(D3D12CreateDevice
-		(
-			pd3dAdapter,
+		// ID3D12Device 생성 부분
+		if (SUCCEEDED(D3D12CreateDevice(
+			pd3dAdapter.Get(),
 			D3D_FEATURE_LEVEL_12_0,
-			__uuidof(ID3D12Device),
-			(void**)&m_pd3dDevice
+			IID_PPV_ARGS(&m_pd3dDevice)
 		)))
 			break;
 	}
@@ -172,13 +142,13 @@ void CGameFramework::CreateDirect3DDevice()
 	// 특성 레벨 12.0을 지원하는 하드웨어 디바이스를 생성할 수 없으면 WARP 디바이스를 생성한다.
 	if (!pd3dAdapter)
 	{
-		m_pdxgiFactory->EnumWarpAdapter(__uuidof(IDXGIAdapter1), (void**)&pd3dAdapter);
-		D3D12CreateDevice
-		(
-			pd3dAdapter,
+		m_pdxgiFactory->EnumWarpAdapter(IID_PPV_ARGS(&pd3dAdapter));
+
+		// ID3D12Device 생성 부분
+		D3D12CreateDevice(
+			pd3dAdapter.Get(),
 			D3D_FEATURE_LEVEL_11_0,
-			__uuidof(ID3D12Device),
-			(void**)&m_pd3dDevice
+			IID_PPV_ARGS(&m_pd3dDevice)
 		);
 	}
 
@@ -198,12 +168,10 @@ void CGameFramework::CreateDirect3DDevice()
 	m_nMsaa4xQualityLevels = d3dMsaaQualityLevels.NumQualityLevels;
 
 	// 펜스를 생성하고 펜스 값을 0으로 설정한다.
-	hResult = m_pd3dDevice->CreateFence
-	(
+	hResult = m_pd3dDevice->CreateFence(
 		0,
 		D3D12_FENCE_FLAG_NONE,
-		__uuidof(ID3D12Fence),
-		(void**)&m_pd3dFence
+		IID_PPV_ARGS(&m_pd3dFence)
 	);
 	m_nFenceValue = 0;
 
@@ -213,18 +181,6 @@ void CGameFramework::CreateDirect3DDevice()
 	*/
 	m_hFenceEvent = ::CreateEvent(NULL, FALSE, FALSE, NULL);
 
-	// 뷰포트를 주 윈도우의 클라이언트 영역 전체로 설정한다.
-	m_d3dViewport.TopLeftX = 0;
-	m_d3dViewport.TopLeftY = 0;
-	m_d3dViewport.Width = static_cast<float>(m_nWndClientWidth);
-	m_d3dViewport.Height = static_cast<float>(m_nWndClientHeight);
-	m_d3dViewport.MinDepth = 0.f;
-	m_d3dViewport.MaxDepth = 1.f;
-
-	// 씨저 사각형을 주 윈도우의 클라이언트 영역 전체로 설정한다.
-	m_d3dScissorRect = { 0, 0, m_nWndClientWidth, m_nWndClientHeight };
-
-	if (pd3dAdapter) pd3dAdapter->Release();
 }
 
 void CGameFramework::CreateCommandQueueAndList()
@@ -234,30 +190,26 @@ void CGameFramework::CreateCommandQueueAndList()
 	::ZeroMemory(&d3dCommandQueueDesc, sizeof(D3D12_COMMAND_QUEUE_DESC));
 	d3dCommandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 	d3dCommandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-	HRESULT hResult = m_pd3dDevice->CreateCommandQueue
-	(
+
+	// 커맨드 큐 생성
+	HRESULT hResult = m_pd3dDevice->CreateCommandQueue(
 		&d3dCommandQueueDesc,
-		_uuidof(ID3D12CommandQueue),
-		(void**)&m_pd3dCommandQueue
+		IID_PPV_ARGS(&m_pd3dCommandQueue)
 	);
 
 	// 직접(Direct) 명령 할당자를 생성한다. 
-	hResult = m_pd3dDevice->CreateCommandAllocator
-	(
+	hResult = m_pd3dDevice->CreateCommandAllocator(
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		__uuidof(ID3D12CommandAllocator),
-		(void**)&m_pd3dCommandAllocator
+		IID_PPV_ARGS(&m_pd3dCommandAllocator)
 	);
 
 	// 직접(Direct) 명령 리스트를 생성한다. 
-	hResult = m_pd3dDevice->CreateCommandList
-	(
+	hResult = m_pd3dDevice->CreateCommandList(
 		0,
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
 		m_pd3dCommandAllocator.Get(),
 		NULL,
-		__uuidof(ID3D12GraphicsCommandList),
-		(void**)&m_pd3dCommandList
+		IID_PPV_ARGS(&m_pd3dCommandList)
 	);
 
 	// 명령 리스트는 생성되면 열린(Open) 상태이므로 닫힌(Closed) 상태로 만든다. 
@@ -274,11 +226,9 @@ void CGameFramework::CreateRtvAndDsvDescriptorHeaps()
 	d3dDescriptorHeapDesc.NodeMask = 0;
 
 	// 렌더 타겟 서술자 힙(서술자의 개수는 스왑체인 버퍼의 개수)을 생성한다.
-	HRESULT hResult = m_pd3dDevice->CreateDescriptorHeap
-	(
+	HRESULT hResult = m_pd3dDevice->CreateDescriptorHeap(
 		&d3dDescriptorHeapDesc,
-		__uuidof(ID3D12DescriptorHeap),
-		(void**)&m_pd3dRtvDescriptorHeap
+		IID_PPV_ARGS(&m_pd3dRtvDescriptorHeap)
 	);
 
 	// 렌더 타겟 서술자 힙의 원소의 크기를 저장한다.
@@ -287,11 +237,9 @@ void CGameFramework::CreateRtvAndDsvDescriptorHeaps()
 	// 깊이-스텐실 서술자 힙(서술자의 개수는 1)을 생성한다.
 	d3dDescriptorHeapDesc.NumDescriptors = 1;
 	d3dDescriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-	hResult = m_pd3dDevice->CreateDescriptorHeap
-	(
+	hResult = m_pd3dDevice->CreateDescriptorHeap(
 		&d3dDescriptorHeapDesc,
-		__uuidof(ID3D12DescriptorHeap),
-		(void**)&m_pd3dDsvDescriptorHeap
+		IID_PPV_ARGS(&m_pd3dDsvDescriptorHeap)
 	);
 
 	// 깊이-스텐실 서술자 힙의 원소의 크기를 저장한다. 
@@ -305,14 +253,11 @@ void CGameFramework::CreateRenderTargetViews()
 
 	for (UINT i = 0; i < m_nSwapChainBuffers; ++i)
 	{
-		m_pdxgiSwapChain->GetBuffer
-		(
+		m_pdxgiSwapChain->GetBuffer(
 			i,
-			__uuidof(ID3D12Resource),
-			(void**)&m_ppd3dSwapChainBackBuffers[i]
+			IID_PPV_ARGS(&m_ppd3dSwapChainBackBuffers[i])
 		);
-		m_pd3dDevice->CreateRenderTargetView
-		(
+		m_pd3dDevice->CreateRenderTargetView(
 			m_ppd3dSwapChainBackBuffers[i].Get(),
 			NULL,
 			d3dRtvCPUDescriptorHandle
@@ -324,8 +269,8 @@ void CGameFramework::CreateRenderTargetViews()
 void CGameFramework::CreateDepthStencilView()
 {
 	D3D12_RESOURCE_DESC d3dResourceDesc;
-	d3dResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-	d3dResourceDesc.Alignment = 0;
+	d3dResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;	// Buffer or Tex
+	d3dResourceDesc.Alignment = 0;	// 64KB
 	d3dResourceDesc.Width = m_nWndClientWidth;
 	d3dResourceDesc.Height = m_nWndClientHeight;
 	d3dResourceDesc.DepthOrArraySize = 1;
@@ -349,22 +294,19 @@ void CGameFramework::CreateDepthStencilView()
 	d3dClearValue.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
 	d3dClearValue.DepthStencil.Depth = 1.0f;
 	d3dClearValue.DepthStencil.Stencil = 0;
-	m_pd3dDevice->CreateCommittedResource
-	(
+	m_pd3dDevice->CreateCommittedResource(
 		&d3dHeapProperties,
 		D3D12_HEAP_FLAG_NONE,
 		&d3dResourceDesc,
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		&d3dClearValue,
-		__uuidof(ID3D12Resource),
-		(void**)&m_pd3dDepthStencilBuffer
+		IID_PPV_ARGS(&m_pd3dDepthStencilBuffer)
 	);
 
 	// 깊이-스텐실 버퍼 뷰를 생성한다.
 	D3D12_CPU_DESCRIPTOR_HANDLE d3dDsvCPUDescriptorHandle =
 		m_pd3dDsvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	m_pd3dDevice->CreateDepthStencilView
-	(
+	m_pd3dDevice->CreateDepthStencilView(
 		m_pd3dDepthStencilBuffer.Get(),
 		NULL,
 		d3dDsvCPUDescriptorHandle
@@ -373,17 +315,38 @@ void CGameFramework::CreateDepthStencilView()
 
 void CGameFramework::BuildObjects()
 {
-	m_pScene = new CScene();
+	m_pd3dCommandList->Reset(m_pd3dCommandAllocator.Get(), NULL);
 
-	if (m_pScene) m_pScene->BuildObjects(m_pd3dDevice.Get());
+	// 카메라 객체를 생성하여 뷰포트, 씨저 사각형, 투영 변환 행렬, 카메라 변환 행렬 생성 및 설정
+	m_pCamera = std::make_unique<CCamera>();
+	m_pCamera->SetViewport(0, 0, m_nWndClientWidth, m_nWndClientHeight, 0.0f, 1.0f);
+	m_pCamera->SetScissorRect(0, 0, m_nWndClientWidth, m_nWndClientHeight);
+	m_pCamera->GenerateProjectionMatrix(1.0f, FRUSTUM_FAR_PLANE,
+		float(m_nWndClientWidth) / float(m_nWndClientHeight), 90.0f);
+	m_pCamera->GenerateViewMatrix(XMFLOAT3(0.0f, 0.0f, -2.0f), XMFLOAT3(0.0f, 0.0f, 0.0f),
+		XMFLOAT3(0.0f, 1.0f, 0.0f));
+
+	// 씬 객체를 생성하고 씬에 포함될 게임 객체들을 생성한다. 
+	m_pScene = std::make_unique<CScene>();
+	m_pScene->BuildObjects(m_pd3dDevice.Get(), m_pd3dCommandList.Get());
+
+	// 씬 객체를 생성하기 위하여 필요한 그래픽 명령 리스트들을 명령 큐에 추가한다.
+	m_pd3dCommandList->Close();
+	ID3D12CommandList* ppd3dCommandLists[] = { m_pd3dCommandList.Get()};
+	m_pd3dCommandQueue->ExecuteCommandLists(1, ppd3dCommandLists);
+
+	// 그래픽 명령 리스트들이 모두 실행될 때까지 기다린다.
+	WaitForGPUComplete();
+
+	// 그래픽 리소스들을 생성하는 과정에 생성된 업로드 버퍼들을 소멸시킨다.
+	if (m_pScene) m_pScene->ReleaseUploadBuffers();
 
 	m_GameTimer.Reset();
 }
 
 void CGameFramework::ReleaseObjects()
 {
-	if (m_pScene) m_pScene->ReleaseObjects();
-	if (m_pScene) delete m_pScene;
+
 }
 
 void CGameFramework::OnProcessingMouseMessage(HWND hWnd, UINT nMessageID, WPARAM wParam, LPARAM lParam)
@@ -458,7 +421,8 @@ void CGameFramework::ChangeSwapChainState()
 
 	BOOL bFullScreenState = FALSE;
 	m_pdxgiSwapChain->GetFullscreenState(&bFullScreenState, NULL);
-	m_pdxgiSwapChain->SetFullscreenState(!bFullScreenState, NULL);
+	// TRUE = fullscreen
+	m_pdxgiSwapChain->SetFullscreenState(FALSE, NULL);
 
 	DXGI_MODE_DESC dxgiTargetParameters;
 	dxgiTargetParameters.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -472,13 +436,12 @@ void CGameFramework::ChangeSwapChainState()
 
 	for (int i = 0; i < m_nSwapChainBuffers; i++) {
 		if (m_ppd3dSwapChainBackBuffers[i])
-			m_ppd3dSwapChainBackBuffers[i]->Release();
+			m_ppd3dSwapChainBackBuffers[i].Reset();
 	}
 
 	DXGI_SWAP_CHAIN_DESC dxgiSwapChainDesc;
 	m_pdxgiSwapChain->GetDesc(&dxgiSwapChainDesc);
-	m_pdxgiSwapChain->ResizeBuffers
-	(
+	m_pdxgiSwapChain->ResizeBuffers(
 		m_nSwapChainBuffers,
 		m_nWndClientWidth,
 		m_nWndClientHeight,
@@ -502,10 +465,22 @@ void CGameFramework::AnimateObjects()
 
 void CGameFramework::WaitForGPUComplete()
 {
+	// 현재 스왑체인 버퍼의 Fence Value를 1 증가
+	// 이번 작업이 끝나면 증가된 Fence Value를 다시 m_nFenceValues에 찍음
 	UINT64 nFenceValue = ++m_nFenceValues[m_nSwapChainBufferIndex];
+
+	// cmdQueue의 마지막에 펜스의 값을 nFenceValue로 바꾸라는 신호를 삽입
+	// GPU는 큐에 쌓인 이전 명령들을 다 처리한 뒤 Signal을 실행하게 됨 -> nFenceValue로 값이 바뀜
 	HRESULT hResult = m_pd3dCommandQueue->Signal(m_pd3dFence.Get(), nFenceValue);
+
+	// 현재 펜스에 기록된 값(GPU가 실제 완료한 번호)이 목표한 번호보다 낮은지 확인
 	if (m_pd3dFence->GetCompletedValue() < nFenceValue) {
+
+		// 펜스의 값이 목표값(nFenceValue)에 도달하면 m_hFenceEvent를 발생시키도록 예약
+		// 즉, 모든 작업이 완료되고 현재 스왑체인 버퍼의 m_nFenceValue가 nFenceValue로 바뀌면 이벤트 발생.
 		hResult = m_pd3dFence->SetEventOnCompletion(nFenceValue, m_hFenceEvent);
+
+		// 이벤트가 발생할 때까지 기다림.
 		::WaitForSingleObject(m_hFenceEvent, INFINITE);
 	}
 }
@@ -513,11 +488,11 @@ void CGameFramework::WaitForGPUComplete()
 void CGameFramework::MoveToNextFrame()
 {
 	m_nSwapChainBufferIndex = m_pdxgiSwapChain->GetCurrentBackBufferIndex();
-	
+
 	UINT64 nFenceValue = ++m_nFenceValues[m_nSwapChainBufferIndex];
 	HRESULT hResult = m_pd3dCommandQueue->Signal(m_pd3dFence.Get(), nFenceValue);
 
-	if (m_pd3dFence->GetCompletedValue() < nFenceValue)	{
+	if (m_pd3dFence->GetCompletedValue() < nFenceValue) {
 		hResult = m_pd3dFence->SetEventOnCompletion(nFenceValue, m_hFenceEvent);
 		::WaitForSingleObject(m_hFenceEvent, INFINITE);
 	}
@@ -535,9 +510,6 @@ void CGameFramework::FrameAdvance()
 	// 명령 할당자와 명령 리스트를 리셋한다. 
 	HRESULT hResult = m_pd3dCommandAllocator->Reset();
 	hResult = m_pd3dCommandList->Reset(m_pd3dCommandAllocator.Get(), NULL);
-
-	m_pd3dCommandList->RSSetViewports(1, &m_d3dViewport);
-	m_pd3dCommandList->RSSetScissorRects(1, &m_d3dScissorRect);
 
 	/*
 	현재 렌더 타겟에 대한 프리젠트가 끝나기를 기다린다.
@@ -567,8 +539,7 @@ void CGameFramework::FrameAdvance()
 		&d3dDsvCPUDescriptorHandle);
 
 	float pfClearColor[4] = { 0.0f, 0.125f, 0.3f, 1.0f };
-	m_pd3dCommandList->ClearRenderTargetView
-	(
+	m_pd3dCommandList->ClearRenderTargetView(
 		d3dRtvCPUDescriptorHandle,
 		pfClearColor,
 		0,
@@ -576,8 +547,7 @@ void CGameFramework::FrameAdvance()
 	);
 
 	// 원하는 값으로 깊이-스텐실(뷰)을 지운다.
-	m_pd3dCommandList->ClearDepthStencilView
-	(
+	m_pd3dCommandList->ClearDepthStencilView(
 		d3dDsvCPUDescriptorHandle,
 		D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL,
 		1.0f,
@@ -586,9 +556,9 @@ void CGameFramework::FrameAdvance()
 		NULL
 	);
 
-	if (m_pScene) m_pScene->Render(m_pd3dCommandList.Get());
-
 	// 렌더링 코드는 여기에 추가될 것이다. 
+	if (m_pScene) m_pScene->Render(m_pd3dCommandList.Get(), m_pCamera.get());
+
 
 
 	/*
@@ -605,8 +575,7 @@ void CGameFramework::FrameAdvance()
 
 	// 명령 리스트를 명령 큐에 추가하여 실행한다.
 	ID3D12CommandList* ppd3dCommandLists[] = { m_pd3dCommandList.Get() };
-	m_pd3dCommandQueue->ExecuteCommandLists
-	(
+	m_pd3dCommandQueue->ExecuteCommandLists(
 		_countof(ppd3dCommandLists),
 		ppd3dCommandLists
 	);
